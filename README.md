@@ -1,1 +1,1 @@
-# treatment-analysis-with-GP
+# treatment-analysis-with-gp
