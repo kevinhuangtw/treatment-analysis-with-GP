@@ -4,14 +4,6 @@ import pandas as pd
 
 from data_generator import get_y_generator
 
-# %%
-if __name__ == "__main__":
-    # %% Const
-    N = 1000
-    D = 20
-    EXP_NO = 1
-    NOISE_SIGMA = 0.5
-
 
 # %%
 def generate_data(N, D, EXP_NO, NOISE_SIGMA):
@@ -48,3 +40,15 @@ def generate_data(N, D, EXP_NO, NOISE_SIGMA):
 
     # %%
     return df
+
+
+# %%
+if __name__ == "__main__":
+    # %% Const
+    N = 1000
+    D = 20
+    EXP_NO = 1
+    NOISE_SIGMA = 0.5
+
+    data = generate_data(N, D, EXP_NO, NOISE_SIGMA)
+    data.to_csv("data.csv", index=False)

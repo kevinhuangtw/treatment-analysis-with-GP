@@ -1,5 +1,6 @@
 # %%
 import numpy as np
+import pandas as pd
 import gpflow
 
 from gpflow.utilities import print_summary
@@ -7,31 +8,45 @@ from progressbar import progressbar
 
 
 # %%
-def gp_predict(data, N, D, EXP_NO, NOISE_SIGMA, SPLIT_RATIO):
+def gp_predict(data, split_ratio, demean=True):
     # %% Const
+    N = data.shape[0]
+    D = sum(data.columns.str.startswith("x"))
     X_COLS = ["x" + str(i) for i in range(1, D + 1)]
     Y_COLS = ["y"]
 
     # %% Split Train/Test
-    train_num = int(N * SPLIT_RATIO)
+    train_num = int(N * split_ratio)
     train = data.iloc[:train_num]
     test = data.iloc[train_num:]
 
     # %% Train GP Function
-    def get_trained_gp(x_df, y_df):
-        k = gpflow.kernels.SquaredExponential()
-        m = gpflow.models.GPR(data=(x_df.values, y_df.values),
-                              kernel=k, mean_function=None)
+    def get_trained_gp(x_df, y_df, means=None):
+        # Create Kernels
+        k1 = gpflow.kernels.SquaredExponential(
+            lengthscales=[0.1] * 5 + [0.2] * 5 + [1.0] * 10)
+        k2 = gpflow.kernels.Linear()
+        k = k1 + k2
+
+        # Create GP Model
+        m = gpflow.models.GPR(data=(x_df.values, y_df.values), kernel=k,
+                              mean_function=(lambda x: means) if means else None)
         opt = gpflow.optimizers.Scipy()
         opt_logs = opt.minimize(m.training_loss, m.trainable_variables,
                                 options=dict(maxiter=100))
         return m
 
     # %% Get Trained GP (for z = 0 and z = 1)
-    gp_z0 = get_trained_gp(train.loc[train["z"] == 0, X_COLS],
-                           train.loc[train["z"] == 0, Y_COLS])
-    gp_z1 = get_trained_gp(train.loc[train["z"] == 1, X_COLS],
-                           train.loc[train["z"] == 1, Y_COLS])
+    train_z0 = train.loc[train["z"] == 0]
+    train_z0_means = np.mean(train_z0[Y_COLS]).values if demean else None
+    gp_z0 = get_trained_gp(train_z0[X_COLS], train_z0[Y_COLS],
+                           means=train_z0_means)
+
+    train_z1 = train.loc[train["z"] == 1]
+    train_z1_means = np.mean(train_z1[Y_COLS]).values if demean else None
+    gp_z1 = get_trained_gp(train_z1[X_COLS], train_z1[Y_COLS],
+                           means=train_z1_means)
+
     # print_summary(gp_z0)
     # print_summary(gp_z1)
 
@@ -52,4 +67,11 @@ def gp_predict(data, N, D, EXP_NO, NOISE_SIGMA, SPLIT_RATIO):
     test["t"] = (test["te"] < 0).astype(int)
     test["t_hat"] = (test["te_hat"] < 0).astype(int)
 
+    # %%
     return test
+
+
+if __name__ == "__main__":
+    # %%
+    data = pd.read_csv("data.csv")
+    split_ratio = 0.6

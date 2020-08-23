@@ -1,0 +1,5 @@
+gpflow
+progressbar2
+numpy
+pandas
+scikit-learn
