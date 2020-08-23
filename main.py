@@ -1,5 +1,6 @@
 # %%
 import time
+import settings
 import numpy as np
 import pandas as pd
 
@@ -9,44 +10,72 @@ from sklearn.metrics import confusion_matrix
 from data_generation import generate_data
 from gp_prediction import gp_predict
 
+import itertools
+import multiprocessing as mp
+import tensorflow as tf
+
+tf.config.experimental.set_memory_growth(
+    tf.config.experimental.get_visible_devices("GPU")[0], True)
+
+
+# %%
+def run(d, exp_no, noise_sigma, sample_no, demean=True, result_list=None):
+    n = settings.N
+    split_ratio = settings.SPLIT_RATIO
+
+    # %%
+    data = generate_data(n, d, exp_no, noise_sigma)
+    prediction = gp_predict(data, split_ratio, demean)
+
+    tn, fp, fn, tp = confusion_matrix(
+        prediction["t"], prediction["t_hat"]).ravel()
+    acc = (tn + tp) / (tn + fp + fn + tp)
+
+    # %%
+    r = np.corrcoef(prediction["te"],
+                    prediction["te_hat"])[0, 1]
+    r2 = r ** 2
+
+    result = [n, d, exp_no, noise_sigma, demean, sample_no,
+              acc, tn, fp, fn, tp, r2]
+
+    if result_list is not None:
+        result_list.append(result)
+
+    return result
+
+
 # %%
 if __name__ == "__main__":
     start_time = time.time()
 
-    record = pd.DataFrame(columns=[
-        "N", "D", "EXP_NO", "NOISE_SIGMA", "SAMPLE_NO",
-        "ACC", "TN", "FP", "FN", "TP", "R2", "DEMEAN"])
-    record_i = 0
-
-    # %% settings
-    n = 1600
-    split_ratio = 1000 / 1600
-    sample_size = 10  # 10 sample size ~= 1 HR
-    test_cases = [(2, 20, 0.2)]  # exp_no, d, noise_sigma
+    # %%
+    manager = mp.Manager()
+    result_list = manager.list()
 
     # %%
-    for exp_no, d, noise_sigma in test_cases:
-        for sample_no in range(sample_size):  # sample size
-            for demean in (True, False):
-                # %% create data
-                data = generate_data(n, d, exp_no, noise_sigma)
-                prediction = gp_predict(data, split_ratio, demean=demean)
+    args = list(itertools.product(
+        settings.D, settings.EXP_NO, settings.NOISE_SIGMA,
+        list(range(settings.SAMPLE_NUM_PER_SETTING)), settings.DEMEAN))
+    for i, arg in enumerate(args):
+        args[i] = arg + (result_list,)
 
-                # %% calculate scores
-                tn, fp, fn, tp = confusion_matrix(
-                    prediction["t"], prediction["t_hat"]).ravel()
-                acc = (tn + tp) / (tn + fp + fn + tp)
+    # %% settings
+    try:
+        with mp.Pool(3) as p:
+            result_list_complete = p.starmap(run, args)
 
-                r = np.corrcoef(prediction["te"],
-                                prediction["te_hat"])[0, 1]
-                r2 = r ** 2
+    except Exception as e:
+        print(e)
+        print("Done Records Num:" + str(len(result_list)))
 
-                # %% add records
-                record.loc[record_i] = [n, d, exp_no,
-                                        noise_sigma, sample_no,
-                                        acc, tn, fp, fn, tp, r2, demean]
-                record_i += 1
-    else:
-        record.to_csv("records" + time.strftime("_%m%d_%H%M%S") + ".csv")
+    finally:
+        record = pd.DataFrame(list(result_list), columns=[
+            "N", "D", "EXP_NO", "NOISE_SIGMA", "DEMEAN", "SAMPLE_NO",
+            "ACC", "TN", "FP", "FN", "TP", "R2"])
+
+        record.to_csv("records_{}_{}.csv".format(
+            time.strftime("%m%d_%H%M%S"),
+            "".join([str(no) for no in settings.EXP_NO])))
 
     print(time.time() - start_time)

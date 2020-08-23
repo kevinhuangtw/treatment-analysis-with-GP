@@ -1,4 +1,5 @@
 # %%
+import settings
 import numpy as np
 import pandas as pd
 import gpflow
@@ -22,13 +23,7 @@ def gp_predict(data, split_ratio, demean=True):
 
     # %% Train GP Function
     def get_trained_gp(x_df, y_df, means=None):
-        # Create Kernels
-        k1 = gpflow.kernels.SquaredExponential(
-            lengthscales=[0.1] * 5 + [0.2] * 5 + [1.0] * 10)
-        k2 = gpflow.kernels.Linear()
-        k = k1 + k2
-
-        # Create GP Model
+        k = settings.create_kernel(len(X_COLS))
         m = gpflow.models.GPR(data=(x_df.values, y_df.values), kernel=k,
                               mean_function=(lambda x: means) if means else None)
         opt = gpflow.optimizers.Scipy()
