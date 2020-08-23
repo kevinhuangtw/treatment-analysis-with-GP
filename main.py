@@ -19,63 +19,52 @@ tf.config.experimental.set_memory_growth(
 
 
 # %%
-def run(d, exp_no, noise_sigma, sample_no, demean=True, result_list=None):
+def run(d, exp_no, noise_sigma, demean=True, sample_no=0):
     n = settings.N
     split_ratio = settings.SPLIT_RATIO
 
-    # %%
-    data = generate_data(n, d, exp_no, noise_sigma)
-    prediction = gp_predict(data, split_ratio, demean)
+    try:
+        # %%
+        data = generate_data(n, d, exp_no, noise_sigma)
+        prediction = gp_predict(data, split_ratio, demean)
 
-    tn, fp, fn, tp = confusion_matrix(
-        prediction["t"], prediction["t_hat"]).ravel()
-    acc = (tn + tp) / (tn + fp + fn + tp)
+        tn, fp, fn, tp = confusion_matrix(
+            prediction["t"], prediction["t_hat"]).ravel()
+        acc = (tn + tp) / (tn + fp + fn + tp)
 
-    # %%
-    r = np.corrcoef(prediction["te"],
-                    prediction["te_hat"])[0, 1]
-    r2 = r ** 2
+        # %%
+        r = np.corrcoef(prediction["te"],
+                        prediction["te_hat"])[0, 1]
+        r2 = r ** 2
 
-    result = [n, d, exp_no, noise_sigma, demean, sample_no,
-              acc, tn, fp, fn, tp, r2]
+        result = [n, d, exp_no, noise_sigma, demean, sample_no,
+                  acc, tn, fp, fn, tp, r2]
+    except Exception as e:
+        result = [n, d, exp_no, noise_sigma, demean, sample_no] + [np.nan] * 6
 
-    if result_list is not None:
-        result_list.append(result)
-
-    return result
+    finally:
+        return result
 
 
 # %%
 if __name__ == "__main__":
     start_time = time.time()
 
-    # %%
-    manager = mp.Manager()
-    result_list = manager.list()
-
-    # %%
-    args = list(itertools.product(
-        settings.D, settings.EXP_NO, settings.NOISE_SIGMA,
-        list(range(settings.SAMPLE_NUM_PER_SETTING)), settings.DEMEAN))
-    for i, arg in enumerate(args):
-        args[i] = arg + (result_list,)
-
     # %% settings
-    try:
-        with mp.Pool(3) as p:
-            result_list_complete = p.starmap(run, args)
+    args = list(itertools.product(
+        settings.D, settings.EXP_NO, settings.NOISE_SIGMA, settings.DEMEAN,
+        list(range(settings.SAMPLE_NUM_PER_SETTING))))
 
-    except Exception as e:
-        print(e)
-        print("Done Records Num:" + str(len(result_list)))
+    # %%
+    with mp.Pool(3) as p:
+        result = p.starmap(run, args)
 
-    finally:
-        record = pd.DataFrame(list(result_list), columns=[
-            "N", "D", "EXP_NO", "NOISE_SIGMA", "DEMEAN", "SAMPLE_NO",
-            "ACC", "TN", "FP", "FN", "TP", "R2"])
+    record = pd.DataFrame(result, columns=[
+        "N", "D", "EXP_NO", "NOISE_SIGMA", "DEMEAN", "SAMPLE_NO",
+        "ACC", "TN", "FP", "FN", "TP", "R2"])
 
-        record.to_csv("records_{}_{}.csv".format(
-            time.strftime("%m%d_%H%M%S"),
-            "".join([str(no) for no in settings.EXP_NO])))
+    record.to_csv("records_{}_{}.csv".format(
+        time.strftime("%m%d_%H%M%S"),
+        "".join([str(no) for no in settings.EXP_NO])))
 
     print(time.time() - start_time)
