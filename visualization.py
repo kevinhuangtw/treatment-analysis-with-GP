@@ -1,22 +1,13 @@
 # %%
-import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
+df = pd.read_csv("data.csv")
+
 # %%
-csv = [f for f in os.listdir() if f.startswith("record")][-1]  # latest
-df = pd.read_csv(csv)
+df[["y0_noise_sigma", "y1_noise_sigma"]].plot.kde()
+plt.show()
 
-#%%
-group_cols = ["EXP_NO"]
-x_axis_cols = ["D", "NOISE_SIGMA", "DEMEAN"]
-
-#%% ACC
-for key, grp in df.groupby(group_cols):
-    grp.boxplot(column="ACC", by=x_axis_cols, rot=60)
-    plt.show()
-
-#%% R2
-for key, grp in df.groupby(group_cols):
-    grp.boxplot(column="R2", by=x_axis_cols, rot=60)
-    plt.show()
+# %%
+df[["y0_noise", "y1_noise"]].plot.kde()
+plt.show()
