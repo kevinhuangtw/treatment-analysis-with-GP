@@ -10,12 +10,14 @@ def get_base(df):
 
 
 def get_effect(df):
-    return 5 * to1(df["x1"] > 1) - 5
+    return 3 * to1(df["x1"] > 1) - 1
+    # return 5 * to1(df["x1"] > 1) - 5
 
 
 def get_y0_noise_sigma(df, const=0.1):
-    return const + df["z"] + np.sin(df["base"])
+    # 對 x 的比重較重
+    return const + df["z"] + 2 * abs(np.sin(df["base"]))
 
 
-def get_y1_noise_sigma(df, const=0.2):
-    return const + 2 * df["z"] + np.sin(df["base"] + df["effect"])
+def get_y1_noise_sigma(df, const=0.3):
+    return const + df["z"] + abs(np.sin(f["base"] + df["effect"]))

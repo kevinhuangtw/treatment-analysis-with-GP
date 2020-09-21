@@ -25,16 +25,17 @@ def get_xs(mean_1, std_1, mean_2, std_2, num=10):
 
 def first_order_dominance(mean_1, std_1, mean_2, std_2):
     for x in get_xs(mean_1, std_1, mean_2, std_2):
-        if norm_cdf_diff(x, mean_1, std_1, mean_2, std_2) >= 0:
+        if norm_cdf_diff(x, mean_1, std_1, mean_2, std_2) > 0:
             return False
     else:
         return True
 
 
 def second_order_dominance(mean_1, std_1, mean_2, std_2):
+    # 前百分之N的最壞情況，不能比較差 (5%...都考慮了)
     for x in get_xs(mean_1, std_1, mean_2, std_2):
         diff = integrate_norm_cdf_diff(x, mean_1, std_1, mean_2, std_2)
-        if diff >= 0:
+        if diff > 0:
             return False
     else:
         return True
@@ -42,6 +43,7 @@ def second_order_dominance(mean_1, std_1, mean_2, std_2):
 
 # %%
 if __name__ == "__main__":
+    # args = [mean_1, std_1, mean_2, std_2]
     args = [1, 1, 0, 1]  # 平均較好，風險一樣
     print(args)
     print(first_order_dominance(*args))  # True

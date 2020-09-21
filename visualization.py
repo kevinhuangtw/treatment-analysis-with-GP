@@ -1,8 +1,13 @@
 # %%
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("data.csv")
+# %%
+fname = [f for f in os.listdir()
+         if f.startswith("data") and f.endswith(".csv")][-1]
+
+df = pd.read_csv(fname)
 
 # %%
 df[["y0_noise_sigma", "y1_noise_sigma"]].plot.kde()
